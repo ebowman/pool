@@ -1,10 +1,22 @@
 package pool
 
-case class Budget(current: Int, model: GrowthModel, month: Int = 0, carryOver: Int = 0) {
-  def evolve(hired: Int): Budget =
-    copy(current = current + hired, model.evolve, month = month + 1, carryOver = carryOver + model.next() - hired)
+import scala.util.Try
 
-  def toHire: Int = carryOver + model.next()
+
+case class Budget(currentHeadcount: Int, model: GrowthModel, month: Int = 0, carryOver: Int = 0) {
+  def evolve(hired: Int): Budget =
+    copy(currentHeadcount = currentHeadcount + hired,
+      model.evolve,
+      month = month + 1,
+      carryOver = carryOver + model.next() - hired)
+
+  lazy val budgetedHeadCount = currentHeadcount + toHire
+
+  lazy val toHire: Int = carryOver + model.next()
+
+  lazy val relativeHiringPressure = Try(toHire / budgetedHeadCount.toDouble)
+
+  lazy val isDoneHiring = currentHeadcount >= model.totalBudget()
 }
 
 sealed trait GrowthModel {

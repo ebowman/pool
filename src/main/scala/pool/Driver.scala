@@ -1,48 +1,18 @@
 package pool
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object Driver extends App {
-  val absoluteSort = (a: Head, b: Head) => {
-    (for {
-      productA <- a.product
-      productB <- b.product
-      currentA = productA.current
-      currentB = productB.current
-      budgetedA = productA.growthModel.next()
-      budgetedB = productB.growthModel.next()
-    } yield {
-      val x = budgetedA - currentA
-      val y = budgetedB - currentB
-      x > y
-    }).getOrElse(sys.error("oops"))
+  def absoluteSort(a: Budget, b: Budget) = a.toHire > b.toHire
+
+  // this has some special logic to make sure empty budgets sort last
+  def relativeSort(a: Budget, b: Budget) = (a.relativeHiringPressure, b.relativeHiringPressure) match {
+    case (Success(p), Success(q)) => p > q
+    case (Success(_), Failure(_)) => true
+    case _ => false
   }
 
-  val relativeSort = (a: Head, b: Head) => {
-    val aMetric = (for {
-      product <- a.product
-      current = product.current
-      budgeted = product.growthModel.next()
-    } yield {
-      Try((budgeted - current) / budgeted)
-    }).getOrElse(sys.error("oops"))
-    val bMetric = (for {
-      product <- b.product
-      current = product.current
-      budgeted = product.growthModel.next()
-    } yield {
-      Try((budgeted - current) / budgeted)
-    }).getOrElse(sys.error("oops"))
-
-    (aMetric.toOption, bMetric.toOption) match {
-      case (Some(p), Some(q)) => p > q
-      case (Some(_), None) => true
-      case (None, Some(_)) => false
-      case (None, None) => false
-    }
-  }
-
-  val ensembleGen = ModelFactory.ensemble(
+  val ensembleGen = Generators.ensemble(
     headCount = 10,
     bigSmallRatio = 0.1,
     hireCount = 20,
