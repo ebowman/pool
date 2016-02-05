@@ -4,24 +4,44 @@ import scala.util.Try
 
 object Driver extends App {
   val absoluteSort = (a: Head, b: Head) => {
-    val x = a.product.get.budgeted - a.product.get.current
-    val y = b.product.get.budgeted - b.product.get.current
-    x > y
+    (for {
+      productA <- a.product
+      productB <- b.product
+      currentA = productA.current
+      currentB = productB.current
+      budgetedA = productA.growthModel.next()
+      budgetedB = productB.growthModel.next()
+    } yield {
+      val x = budgetedA - currentA
+      val y = budgetedB - currentB
+      x > y
+    }).getOrElse(sys.error("oops"))
   }
+
   val relativeSort = (a: Head, b: Head) => {
-    val x = Try {
-      (a.product.get.budgeted - a.product.get.current) / a.product.get.budgeted
-    }
-    val y = Try {
-      b.product.get.budgeted - b.product.get.current / b.product.get.budgeted
-    }
-    (x.toOption, y.toOption) match {
+    val aMetric = (for {
+      product <- a.product
+      current = product.current
+      budgeted = product.growthModel.next()
+    } yield {
+      Try((budgeted - current) / budgeted)
+    }).getOrElse(sys.error("oops"))
+    val bMetric = (for {
+      product <- b.product
+      current = product.current
+      budgeted = product.growthModel.next()
+    } yield {
+      Try((budgeted - current) / budgeted)
+    }).getOrElse(sys.error("oops"))
+
+    (aMetric.toOption, bMetric.toOption) match {
       case (Some(p), Some(q)) => p > q
       case (Some(_), None) => true
       case (None, Some(_)) => false
       case (None, None) => false
     }
   }
+
   val ensembleGen = ModelFactory.ensemble(
     headCount = 10,
     bigSmallRatio = 0.1,

@@ -2,7 +2,10 @@ package pool
 
 import org.scalacheck.Gen
 
-case class Product(name: String, current: Int, budgeted: Int)
+
+
+
+case class Product(name: String, current: Int, growthModel: GrowthModel)
 
 case class Head(name: String, pitchEfficiency: Double, product: Option[Product] = None)
 
@@ -12,7 +15,26 @@ case class Ensemble(products: Seq[Product], heads: Seq[Head], hires: Seq[Hire])
 
 object ModelFactory {
 
-  val prods: Iterator[String] = {
+  def genLinearModel(): Gen[LinearModel] = Gen.chooseNum(1, 5).map(LinearModel.apply)
+
+  def genFrontLoadModel(): Gen[FrontLoadModel] = {
+    for {
+      rampupMonths <- Gen.frequency((7, Gen.choose(1, 1)), (2, Gen.choose(2, 2)), (1, Gen.choose(3, 3)))
+      perMonthBudget <- Gen.chooseNum(1, 5)
+    } yield FrontLoadModel(perMonthBudget, rampupMonths)
+  }
+
+  def genBackLoadModel(): Gen[BackLoadModel] = {
+    for {
+      rampupMonths <- Gen.frequency((7, Gen.choose(1, 1)), (2, Gen.choose(2, 2)), (1, Gen.choose(3, 3)))
+      perMonthBudget <- Gen.chooseNum(1, 5)
+    } yield BackLoadModel(perMonthBudget, rampupMonths)
+  }
+
+  def genGrowthModel(): Gen[GrowthModel] =
+    Gen.frequency((5, genLinearModel()), (2, genFrontLoadModel()), (2, genBackLoadModel()))
+
+  val prodNames: Iterator[String] = {
     val productRoots = Seq("Article", "Customer", "Availability", "Search", "Brand Solutions", "Wholesale",
       "Smart Logistics", "Data", "Fashion Store", "Advertising")
     val productModifiers = Seq("Customization", "Personalization", "Matchmaking", "Distributed")
@@ -57,7 +79,8 @@ object ModelFactory {
       current <- Gen.choose(40, 60)
       budget <- Gen.choose(1, 20)
       name <- genProdName()
-    } yield Product(name, current, current + budget)
+      growthModel <- genGrowthModel()
+    } yield Product(name, current, growthModel)
   }
 
   def genSmallProduct(): Gen[Product] = {
@@ -65,10 +88,11 @@ object ModelFactory {
       current <- Gen.choose(0, 10)
       budget <- Gen.choose(1, 15)
       name <- genProdName()
-    } yield Product(name, current, current + budget)
+      growthModel <- genGrowthModel()
+    } yield Product(name, current, growthModel)
   }
 
-  def genProdName(): Gen[String] = Gen.oneOf(Seq(prods.next()))
+  def genProdName(): Gen[String] = Gen.oneOf(Seq(prodNames.next()))
 
   def genName(): Gen[String] = Gen.oneOf(Seq(names.next()))
 
@@ -106,3 +130,4 @@ object ModelFactory {
     }
   }
 }
+
